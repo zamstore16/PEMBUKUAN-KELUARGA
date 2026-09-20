@@ -1,0 +1,101 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1677ff"><link rel="manifest" href="manifest.webmanifest"><title>Budget Keluarga</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f7fb;color:#17324d}.wrap{max-width:700px;margin:auto;padding:18px}h1{margin:5px 0 4px}.sub{color:#718096;margin-bottom:18px}.card{background:#fff;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 4px 18px #0001}.total{font-size:34px;font-weight:800;margin:6px 0 14px}.muted{color:#718096;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}input,select,button{width:100%;padding:13px;border:1px solid #d9e2ec;border-radius:11px;font-size:16px}button{background:#1677ff;color:#fff;border:0;font-weight:700;cursor:pointer;margin-top:9px}.budget{margin:13px 0}.name{font-weight:700}.row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #edf2f7}.bar{height:8px;background:#e8eef5;border-radius:99px;overflow:hidden;margin-top:6px}.fill{height:100%;background:#1677ff}.del{width:auto;padding:6px 9px;margin:0;background:#edf2f7;color:#52667a;font-size:12px}.danger{background:#fff1f1;color:#b42318}@media(max-width:500px){.grid{grid-template-columns:1fr}}
+</style></head><body><div class="wrap">
+<h1>💰 Budget Keluarga</h1><div class="sub">Catat pengeluaran harian. Saldo dan sisa tiap slot dihitung otomatis.</div>
+<div class="card"><div class="muted">TOTAL SALDO BULAN INI</div><div id="saldo" class="total">Rp5.000.000</div>
+<div style="margin-top:12px">
+<label class="muted">Ubah total saldo bulan ini</label>
+<input id="anggaranInput" type="number" min="0" step="1000" inputmode="numeric" placeholder="Contoh: 5000000" style="margin-top:6px">
+<button type="button" onclick="editAnggaran()">💾 Simpan Total Saldo</button>
+</div>
+<div class="grid">
+<div><div class="muted">Anggaran Bulan Ini</div><b id="anggaranText">Rp5.000.000</b></div>
+<div><div class="muted">Terpakai</div><b id="terpakai">Rp0</b></div>
+</div></div>
+<div class="card"><h3>📊 Tabungan & Dana Darurat</h3>
+<div class="grid">
+<div><div class="muted">Dana Darurat Terkumpul</div><b id="daruratTotal">Rp0</b></div>
+<div><div class="muted">Tabungan Sisa Bulan Sebelumnya</div><b id="tabunganLalu">Rp0</b></div>
+</div>
+<div style="margin-top:14px"><div class="muted">Total Dana Aman</div><div id="totalAman" class="total" style="font-size:26px">Rp0</div></div>
+</div>
+<div class="card"><h3>Saldo Awal Bulan</h3>
+<div class="grid">
+<div><div class="muted">Tabungan sisa bulan sebelumnya</div><input id="tabunganInput" type="number" min="0" value="0"></div>
+<div><div class="muted">Dana darurat yang sudah terkumpul</div><input id="daruratInput" type="number" min="0" value="0"></div>
+</div><button onclick="saveBalances()">💾 Simpan Saldo Tersimpan</button></div>
+<div class="card"><h3>Tambah Pengeluaran</h3><div class="grid"><select id="k"><option>Makan</option><option>Kebutuhan Bayi</option><option>Dana Darurat</option><option>Sumbangan</option><option>Jalan-jalan</option></select><input id="n" type="number" min="0" placeholder="Nominal (Rp)"></div><input id="c" placeholder="Catatan (opsional)" style="margin-top:10px"><button onclick="add()">+ Simpan</button></div>
+<div class="card"><h3>5 Slot Anggaran</h3><div id="budget"></div></div>
+<div class="card"><h3>Riwayat</h3><div id="history"></div><div class="grid" style="margin-top:12px">
+<button class="danger" onclick="resetAll()">Reset Semua</button>
+<button class="danger" onclick="resetMonth()">Reset Bulan Ini</button>
+</div>
+<button class="danger" onclick="resetCategory()">Reset Salah Satu dari 5 Poin</button></div>
+</div>
+<script>
+const KEY="budget_keluarga_v1", B={"Makan":[.4,"🍚"],"Kebutuhan Bayi":[.2,"👶"],"Dana Darurat":[.25,"🛡️"],"Sumbangan":[.1,"🤝"],"Jalan-jalan":[.05,"🌴"]};
+let d=JSON.parse(localStorage.getItem(KEY)||'{"items":[],"tabunganLalu":0,"daruratTotal":0,"anggaran":5000000}');
+const rp=x=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(x);
+function editAnggaran(){
+ const el=document.getElementById("anggaranInput");
+ const raw=el.value.trim();
+ const n=Number(raw);
+ if(raw==="" || !Number.isFinite(n) || n<0){
+   alert("Masukkan total saldo yang valid.");
+   el.focus();
+   return;
+ }
+ d.anggaran=Math.round(n);
+ localStorage.setItem(KEY,JSON.stringify(d));
+ render();
+ alert("Total saldo bulan ini berhasil diubah menjadi "+rp(d.anggaran));
+}
+function saveBalances(){
+ d.tabunganLalu=+document.getElementById("tabunganInput").value||0;
+ d.daruratTotal=+document.getElementById("daruratInput").value||0;
+ save();
+ alert("Saldo tersimpan.");
+}
+function add(){let k=document.getElementById("k").value,n=+document.getElementById("n").value,c=document.getElementById("c").value.trim();if(!n)return alert("Masukkan nominal.");d.items.unshift({id:Date.now(),k,n,c,t:new Date().toLocaleString("id-ID")});save();document.getElementById("n").value="";document.getElementById("c").value=""}
+function del(id){d.items=d.items.filter(x=>x.id!==id);save()}
+function resetAll(){
+ if(confirm("Reset SEMUA data? Semua riwayat, tabungan, dan dana darurat akan dihapus.")){
+  d={items:[],tabunganLalu:0,daruratTotal:0,anggaran:5000000};
+  save();
+ }
+}
+function resetMonth(){
+ if(confirm("Reset pengeluaran BULAN INI? Tabungan sisa bulan sebelumnya dan dana darurat tetap disimpan.")){
+  d.items=[];
+  save();
+ }
+}
+function resetCategory(){
+ let k=prompt("Ketik nama kategori yang ingin di-reset:\nMakan\nKebutuhan Bayi\nDana Darurat\nSumbangan\nJalan-jalan");
+ if(!k)return;
+ let found=Object.keys(B).find(x=>x.toLowerCase()===k.trim().toLowerCase());
+ if(!found){alert("Kategori tidak ditemukan.");return;}
+ if(confirm("Reset semua pengeluaran kategori "+found+"?")){
+  d.items=d.items.filter(x=>x.k!==found);
+  save();
+ }
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(d));render()}
+function render(){
+if(typeof d.anggaran!=="number") d.anggaran=5000000;
+document.getElementById("anggaranInput").value=d.anggaran;
+document.getElementById("anggaranText").textContent=rp(d.anggaran);
+document.getElementById("tabunganInput").value=d.tabunganLalu||0;
+document.getElementById("daruratInput").value=d.daruratTotal||0;
+document.getElementById("daruratTotal").textContent=rp(d.daruratTotal||0);
+document.getElementById("tabunganLalu").textContent=rp(d.tabunganLalu||0);
+document.getElementById("totalAman").textContent=rp((d.daruratTotal||0)+(d.tabunganLalu||0));
+let used=d.items.reduce((s,x)=>s+x.n,0);document.getElementById("saldo").textContent=rp(d.anggaran-used);document.getElementById("terpakai").textContent=rp(used);
+let b="";for(let k in B){let u=d.items.filter(x=>x.k===k).reduce((s,x)=>s+x.n,0),lim=d.anggaran*B[k][0],p=Math.min(100,u/lim*100);b+=`<div class="budget"><div class="name">${B[k][1]} ${k} — ${Math.round(B[k][0]*100)}%</div><div class="row"><span>${rp(u)} / ${rp(lim)}</span><span>${rp(Math.max(0,lim-u))} sisa</span></div><div class="bar"><div class="fill" style="width:${p}%"></div></div></div>`}document.getElementById("budget").innerHTML=b;
+let h=d.items.map(x=>`<div class="row"><div><b>${B[x.k][1]} ${x.k}</b><div class="muted">${x.t}${x.c?" · "+x.c:""}</div></div><div><b>${rp(x.n)}</b><br><button class="del" onclick="del(${x.id})">Hapus</button></div></div>`).join("");document.getElementById("history").innerHTML=h||'<span class="muted">Belum ada pengeluaran.</span>'}render();
+</script><script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+}
+</script></body></html>
